@@ -5,7 +5,7 @@ import com.ossuminc.riddl.language.Messages.Messages
 import com.ossuminc.riddl.language.AST.Root
 import com.ossuminc.riddl.language.parsing.{RiddlParserInput, StringParserInput, TopLevelParser}
 import com.ossuminc.riddl.passes.{Pass, PassInput, PassesOutput, PassesResult}
-import com.ossuminc.riddl.passes.validate.ValidatingTest
+import com.ossuminc.riddl.testkit.ValidatingTest
 import org.scalatest.Assertion
 
 import java.nio.file.Path
@@ -16,7 +16,7 @@ abstract class HugoTestBase extends ValidatingTest {
     val rpi = StringParserInput(input, "hugo Test")
     val commonOptions = CommonOptions.noMinorWarnings
     val options = HugoCommand.Options(Some(Path.of(".")), Some(Path.of("target/hugo-test")))
-    val passes = HugoCommand.getPasses(commonOptions, options)
+    val passes = HugoCommand.getPasses(options)
 
     TopLevelParser.parseString(input) match {
       case Left(errors) =>
@@ -60,7 +60,7 @@ abstract class HugoTestBase extends ValidatingTest {
         val filePath = rpi.root.toPath
         passesResult.outputOf[HugoOutput](HugoPass.name) match
           case None => fail("No output from hugo pass")
-          case Some(output) =>
+          case Some(_) =>
             val mdw = makeMDW(filePath, passesResult)
             (passesResult, root, mdw)
     }

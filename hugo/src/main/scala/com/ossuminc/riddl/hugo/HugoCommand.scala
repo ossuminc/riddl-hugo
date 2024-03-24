@@ -15,7 +15,7 @@ import com.ossuminc.riddl.passes.Pass.standardPasses
 import com.ossuminc.riddl.passes.{Pass, PassInput, PassesOutput, PassesResult, PassesCreator}
 import com.ossuminc.riddl.stats.StatsPass
 import com.ossuminc.riddl.diagrams.DiagramsPass
-import com.ossuminc.riddl.utils.Logger 
+import com.ossuminc.riddl.utils.Logger
 
 import pureconfig.ConfigCursor
 import pureconfig.ConfigReader
@@ -31,6 +31,7 @@ object HugoCommand {
     inputFile: Option[Path] = None,
     outputDir: Option[Path] = None,
     projectName: Option[String] = None,
+    hugoThemeName: Option[String] = None,
     enterpriseName: Option[String] = None,
     eraseOutput: Boolean = false,
     siteTitle: Option[String] = None,
@@ -63,7 +64,6 @@ object HugoCommand {
   }
 
   def getPasses(
-    commonOptions: CommonOptions,
     options: Options
   ): PassesCreator = {
     val glossary: PassesCreator =
@@ -90,7 +90,7 @@ object HugoCommand {
 
     standardPasses ++ glossary ++ messages ++ stats ++ toDo ++ diagrams ++ Seq(
       { (input: PassInput, outputs: PassesOutput) =>
-        val result = PassesResult(input, outputs, Messages.empty)
+        val _ = PassesResult(input, outputs, Messages.empty)
         HugoPass(input, outputs, options)
       }
     )
@@ -130,6 +130,14 @@ class HugoCommand extends PassCommand[HugoCommand.Options]("hugo") {
               Left("option enterprise-name cannot be blank or empty")
             } else { Right(()) }
           ),
+        opt[String]('T', "hugo-theme-name")
+          .optional()
+          .action((v, c) => c.copy(hugoThemeName = Option(v)))
+          .text("optional hugo theme name to use")
+          .validate {
+            case "geekdoc" | "GeekDoc" => Right(Some("geekdoc"))
+            case "techdoc" | "Techdoc" => Right(Some("techdoc"))
+          },
         opt[Boolean]('e', name = "erase-output")
           .text("Erase entire output directory before putting out files")
           .optional()
@@ -188,6 +196,7 @@ class HugoCommand extends PassCommand[HugoCommand.Options]("hugo") {
       projectName <- optional(objCur, "project-name", "No Project Name") { cur =>
         cur.asString
       }
+      hugoThemeName <- optional(objCur, "hugo-theme-name", "geekdoc") { cur => cur.asString }
       enterpriseName <-
         optional(objCur, "enterprise-name", "No Enterprise Name") { cur =>
           cur.asString
@@ -262,6 +271,7 @@ class HugoCommand extends PassCommand[HugoCommand.Options]("hugo") {
         Option(Path.of(inputPath)),
         Option(Path.of(outputPath)),
         Option(projectName),
+        Option(hugoThemeName),
         Option(enterpriseName),
         eraseOutput,
         Option(siteTitle),
@@ -290,7 +300,7 @@ class HugoCommand extends PassCommand[HugoCommand.Options]("hugo") {
     commonOptions: CommonOptions,
     options: Options
   ): PassesCreator = {
-    HugoCommand.getPasses(commonOptions, options)
+    HugoCommand.getPasses(options)
   }
 
   override def replaceInputFile(

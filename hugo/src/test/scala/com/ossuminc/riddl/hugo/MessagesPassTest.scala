@@ -5,7 +5,7 @@ import com.ossuminc.riddl.testkit.ValidatingTest
 
 class MessagesPassTest extends ValidatingTest {
 
-  val dir = "testkit/src/test/input/"
+  val dir = "hugo/src/test/input/"
 
   "MessagesPass" must {
     "generate MessageInfo" in {

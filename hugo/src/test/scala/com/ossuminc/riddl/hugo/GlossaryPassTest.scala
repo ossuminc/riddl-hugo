@@ -5,7 +5,7 @@ import com.ossuminc.riddl.passes.Pass
 
 class GlossaryPassTest extends ValidatingTest {
 
-  val dir = "testkit/src/test/input/"
+  val dir = "hugo/src/test/input/"
 
   "GlossaryPass" must {
     "product glossary entries" in {

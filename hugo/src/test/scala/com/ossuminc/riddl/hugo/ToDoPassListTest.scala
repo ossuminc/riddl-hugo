@@ -5,7 +5,7 @@ import com.ossuminc.riddl.passes.Pass
 
 class ToDoPassListTest extends ValidatingTest {
 
-  val dir = "testkit/src/test/input/"
+  val dir = "hugo/src/test/input/"
 
   "ToDoListPass" must {
     "generate ToDoItems" in {

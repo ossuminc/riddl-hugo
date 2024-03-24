@@ -432,7 +432,7 @@ case class MarkdownWriter(
     }
   }
 
-  private def emitDescription(d: Option[Description], level: Int = 2): this.type = {
+  def emitDescription(d: Option[Description], level: Int = 2): this.type = {
     d match {
       case None => this
       case Some(desc) =>

@@ -7,7 +7,7 @@
 package com.ossuminc.riddl.hugo
 
 import com.ossuminc.riddl.commands.CommandPlugin
-import com.ossuminc.riddl.language.parsing.ParsingTest
+import com.ossuminc.riddl.testkit.ParsingTest
 
 /** Unit Tests For RegressionTests */
 class RegressionTests extends ParsingTest {

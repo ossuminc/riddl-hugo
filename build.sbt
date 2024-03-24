@@ -4,7 +4,6 @@ import com.ossuminc.sbt.helpers.RootProjectInfo.Keys.{
   gitHubRepository
 }
 
-import scala.collection.Seq
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
@@ -29,10 +28,11 @@ lazy val hugo: Project = Module("hugo", "riddl-hugo")
     Test / parallelExecution := false,
     libraryDependencies ++= Deps.pureconfig ++ Deps.riddl
   )
-  .dependsOn(diagrams, themes)
+  .dependsOn(diagrams)
 
 lazy val themes = Module("themes", "riddl-hugo-themes")
   .configure(With.typical, With.coverage(90.0))
+  .dependsOn(hugo)
 
 lazy val diagrams = Module("diagrams", "riddl-hugo-diagrams")
   .configure(With.typical, With.coverage(90.0))
