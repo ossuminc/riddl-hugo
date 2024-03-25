@@ -1,16 +1,27 @@
 import com.ossuminc.sbt.OssumIncPlugin
 import com.ossuminc.sbt.helpers.Publishing
-import com.ossuminc.sbt.helpers.RootProjectInfo.Keys.{gitHubOrganization, gitHubRepository}
+import com.ossuminc.sbt.helpers.RootProjectInfo.Keys.{
+  gitHubOrganization,
+  gitHubRepository
+}
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
 enablePlugins(OssumIncPlugin)
 
+lazy val devs = List(
+  Developer(
+    "reid-spencer",
+    "Reid Spencer",
+    "reid@ossuminc.com",
+    url("https://github.com/reid-spencer")
+  )
+)
 lazy val root =
-  Root("root", "riddl-hugo", "2024")
+  Root("root", "hugo", startYr = 2024, devs = devs)
     .configure(Publishing.configure, With.git, With.dynver)
     .settings(
-      ThisBuild / gitHubRepository := "riddl",
+      ThisBuild / gitHubRepository := "riddl-hugo",
       ThisBuild / gitHubOrganization := "ossuminc",
     )
     .aggregate(diagrams, hugo)
