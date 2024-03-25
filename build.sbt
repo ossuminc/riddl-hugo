@@ -1,8 +1,6 @@
 import com.ossuminc.sbt.OssumIncPlugin
-import com.ossuminc.sbt.helpers.RootProjectInfo.Keys.{
-  gitHubOrganization,
-  gitHubRepository
-}
+import com.ossuminc.sbt.helpers.Publishing
+import com.ossuminc.sbt.helpers.RootProjectInfo.Keys.{gitHubOrganization, gitHubRepository}
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
@@ -10,10 +8,10 @@ enablePlugins(OssumIncPlugin)
 
 lazy val root =
   Root("root", "riddl-hugo", "2024")
+    .configure(Publishing.configure, With.git, With.dynver)
     .settings(
       ThisBuild / gitHubRepository := "riddl",
       ThisBuild / gitHubOrganization := "ossuminc",
-      publish / skip := true
     )
     .aggregate(diagrams, hugo)
 
