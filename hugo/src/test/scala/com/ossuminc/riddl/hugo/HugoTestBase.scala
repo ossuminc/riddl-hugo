@@ -1,5 +1,6 @@
 package com.ossuminc.riddl.hugo
 
+import com.ossuminc.riddl.hugo.themes.GeekDocTheme
 import com.ossuminc.riddl.language.{CommonOptions, Messages}
 import com.ossuminc.riddl.language.Messages.Messages
 import com.ossuminc.riddl.language.AST.Root
@@ -49,7 +50,7 @@ abstract class HugoTestBase extends ValidatingTest {
       def outputs: PassesOutput = passesResult.outputs
       def options: HugoCommand.Options = HugoCommand.Options()
       protected val messages: Messages.Accumulator = Messages.Accumulator(commonOptions)
-    MarkdownWriter(filePath, commonOptions, symbols, refMap, usages, pu)
+    GeekDocTheme(filePath, commonOptions, symbols, refMap, usages, pu)
   }
 
   def makeMDWFor(input: String): (PassesResult, Root, MarkdownWriter) = {

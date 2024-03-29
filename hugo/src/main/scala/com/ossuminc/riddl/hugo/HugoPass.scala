@@ -19,6 +19,7 @@ import com.ossuminc.riddl.passes.symbols.Symbols.ParentStack
 import com.ossuminc.riddl.passes.validate.ValidationPass
 import com.ossuminc.riddl.stats.StatsPass
 import com.ossuminc.riddl.utils.{PathUtils, Tar, Timer, TreeCopyFileVisitor, Zip}
+import com.ossuminc.riddl.hugo.themes.*
 
 import java.io.File
 import java.net.URL
@@ -88,7 +89,12 @@ case class HugoPass(
       next.resolve(par)
     }
     val path = parDir.resolve(fileName)
-    val mdw = MarkdownWriter(path, commonOptions, symbolsOutput, refMap, usage, this)
+    val mdw: MarkdownWriter = options.hugoThemeName match {
+      case Some(GeekDocTheme.name) | None => GeekDocTheme(path, commonOptions, symbolsOutput, refMap, usage, this)
+      case Some(DotdockTheme.name) => DotdockTheme(path, commonOptions, symbolsOutput, refMap, usage, this)
+      case Some(s) => messages.addError((0, 0), s"Hugo theme named '$s' is not supported, using GeekDoc ")
+        GeekDocTheme(path, commonOptions, symbolsOutput, refMap, usage, this)
+    }
     addFile(mdw)
     mdw
   }

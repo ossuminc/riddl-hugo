@@ -22,5 +22,5 @@ object Deps {
   )
 
   val pureconfig: Seq[ModuleID] =
-    Seq[ModuleID]("com.github.pureconfig" %% "pureconfig-core" % V.pureconfig)
+    Seq[ModuleID ]("com.github.pureconfig" %% "pureconfig-core" % V.pureconfig)
 }

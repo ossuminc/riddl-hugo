@@ -25,7 +25,7 @@ import com.ossuminc.riddl.utils.TextFileWriter
 import java.nio.file.Path
 import scala.annotation.unused
 
-case class MarkdownWriter(
+abstract class MarkdownWriter(
   filePath: Path,
   commonOptions: CommonOptions,
   symbolsOutput: SymbolsOutput,
