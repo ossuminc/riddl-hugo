@@ -7,14 +7,13 @@
 package com.ossuminc.riddl.hugo
 
 import com.ossuminc.riddl.commands.TranslatingState
-import com.ossuminc.riddl.diagrams.{DiagramsPass, DiagramsPassOutput}
 import com.ossuminc.riddl.diagrams.mermaid.*
 import com.ossuminc.riddl.language.*
 import com.ossuminc.riddl.language.AST.{Include, *}
 import com.ossuminc.riddl.language.Messages.Messages
-import com.ossuminc.riddl.passes.{Pass, PassCreator, PassInfo, PassInput, PassOutput, PassesOutput, PassesResult}
-import com.ossuminc.riddl.passes.resolve.{ReferenceMap, ResolutionOutput, ResolutionPass, Usages}
-import com.ossuminc.riddl.passes.symbols.{SymbolsOutput, SymbolsPass}
+import com.ossuminc.riddl.passes.{Pass, PassCreator, PassInfo, PassInput, PassOutput, PassesOutput}
+import com.ossuminc.riddl.passes.resolve.ResolutionPass
+import com.ossuminc.riddl.passes.symbols.SymbolsPass
 import com.ossuminc.riddl.passes.symbols.Symbols.ParentStack
 import com.ossuminc.riddl.passes.validate.ValidationPass
 import com.ossuminc.riddl.stats.StatsPass

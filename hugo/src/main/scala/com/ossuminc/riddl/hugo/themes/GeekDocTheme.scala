@@ -5,6 +5,7 @@ import com.ossuminc.riddl.language.AST.*
 import com.ossuminc.riddl.passes.{PassInput, PassesOutput}
 
 import java.nio.file.Path
+import java.net.URL
 
 object GeekDocTheme {
   val name: String = "GeekDoc"
@@ -21,7 +22,16 @@ case class GeekDocTheme(
 
   def themeName: String = GeekDocTheme.name
 
-  def fileHead(
+  private val geekDoc_version = "v0.44.1"
+  private val geekDoc_file = "hugo-geekdoc.tar.gz"
+  val geekDoc_url: URL = java.net.URI
+    .create(
+      s"https://github.com/thegeeklab/hugo-geekdoc/releases/download/$geekDoc_version/$geekDoc_file"
+    )
+    .toURL
+
+
+def fileHead(
     title: String,
     weight: Int,
     desc: Option[String],
