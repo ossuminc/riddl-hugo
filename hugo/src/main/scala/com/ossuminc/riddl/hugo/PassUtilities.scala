@@ -1,20 +1,35 @@
 package com.ossuminc.riddl.hugo
+
+import com.ossuminc.riddl.diagrams.{DiagramsPass, DiagramsPassOutput}
 import com.ossuminc.riddl.language.AST.*
-import com.ossuminc.riddl.language.Messages
+import com.ossuminc.riddl.language.{CommonOptions, Messages}
 import com.ossuminc.riddl.language.parsing.FileParserInput
+import com.ossuminc.riddl.passes.resolve.{ReferenceMap, ResolutionOutput, ResolutionPass, Usages}
+import com.ossuminc.riddl.passes.symbols.SymbolsOutput
 import com.ossuminc.riddl.passes.{PassInput, PassesOutput, PassesResult}
 
 import java.nio.file.Path
 import scala.collection.mutable
 
 trait PassUtilities {
+
+  def input: PassInput
+  
   def outputs: PassesOutput
+  
   def options: HugoCommand.Options
-  val inputFile: Option[Path] = options.inputFile
+
   protected val messages: Messages.Accumulator
+  lazy val inputFile: Option[Path] = options.inputFile
+  lazy val commonOptions: CommonOptions = input.commonOptions
+  lazy val refMap: ReferenceMap = outputs.outputOf[ResolutionOutput](ResolutionPass.name).get.refMap
 
-  lazy val newline: String = System.getProperty("line.separator")
-
+  lazy val symbolsOutput: SymbolsOutput = outputs.symbols
+  lazy val usage: Usages = outputs.usage
+  lazy val diagrams: DiagramsPassOutput =
+    outputs.outputOf[DiagramsPassOutput](DiagramsPass.name).getOrElse(DiagramsPassOutput())
+  lazy val passesResult: PassesResult = PassesResult(input, outputs)
+  
   def makeFullName(definition: Definition): String = {
     val defs = outputs.symbols.parentsOf(definition).reverse :+ definition
     defs.map(_.id.format).mkString(".")

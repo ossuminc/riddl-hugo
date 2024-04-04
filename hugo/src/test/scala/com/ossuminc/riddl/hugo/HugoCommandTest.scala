@@ -18,7 +18,8 @@ class HugoCommandTest extends RunCommandSpecBase  {
         "hugo",
         inputFile,
         "-o",
-        outputDir("hugo")
+        outputDir("hugo"),
+        "--hugo-theme-name", "GeekDoc"
       )
       runWith(args)
     }

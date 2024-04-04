@@ -45,12 +45,7 @@ abstract class HugoTestBase extends ValidatingTest {
     val symbols = passesResult.symbols
     val refMap = passesResult.refMap
     val usages = passesResult.usage
-    val commonOptions = CommonOptions()
-    val pu = new PassUtilities:
-      def outputs: PassesOutput = passesResult.outputs
-      def options: HugoCommand.Options = HugoCommand.Options()
-      protected val messages: Messages.Accumulator = Messages.Accumulator(commonOptions)
-    GeekDocTheme(filePath, commonOptions, symbols, refMap, usages, pu)
+    GeekDocTheme(filePath, passesResult.input, passesResult.outputs, HugoCommand.Options())
   }
 
   def makeMDWFor(input: String): (PassesResult, Root, MarkdownWriter) = {

@@ -7,16 +7,12 @@
 package com.ossuminc.riddl.hugo
 
 import com.ossuminc.riddl.diagrams.{DiagramsPass, DiagramsPassOutput, UseCaseDiagramData, mermaid}
-import com.ossuminc.riddl.diagrams.mermaid.{
-  ContextMapDiagram,
-  DomainMapDiagram,
-  EntityRelationshipDiagram,
-  UseCaseDiagram,
-  UseCaseDiagramSupport
-}
+import com.ossuminc.riddl.diagrams.mermaid.{ContextMapDiagram, DomainMapDiagram, EntityRelationshipDiagram, UseCaseDiagram, UseCaseDiagramSupport}
+import com.ossuminc.riddl.hugo.themes.ThemeWriter
 import com.ossuminc.riddl.language.AST.*
 import com.ossuminc.riddl.language.CommonOptions
 import com.ossuminc.riddl.language.parsing.Keywords
+import com.ossuminc.riddl.passes.{PassInput, PassesOutput}
 import com.ossuminc.riddl.stats.{KindStats, StatsOutput, StatsPass}
 import com.ossuminc.riddl.passes.resolve.{ReferenceMap, Usages}
 import com.ossuminc.riddl.passes.symbols.SymbolsOutput
@@ -25,237 +21,9 @@ import com.ossuminc.riddl.utils.TextFileWriter
 import java.nio.file.Path
 import scala.annotation.unused
 
-abstract class MarkdownWriter(
-  filePath: Path,
-  commonOptions: CommonOptions,
-  symbolsOutput: SymbolsOutput,
-  refMap: ReferenceMap,
-  usage: Usages,
-  passUtilities: PassUtilities
-) extends TextFileWriter {
-
-  def fileHead(
-    title: String,
-    weight: Int,
-    desc: Option[String],
-    extras: Map[String, String] = Map.empty[String, String]
-  ): this.type = {
-    val adds: String = extras
-      .map { case (k: String, v: String) => s"$k: $v" }
-      .mkString("\n")
-    val headTemplate = s"""---
-                          |title: "$title"
-                          |weight: $weight
-                          |draft: "false"
-                          |description: "${desc.getOrElse("")}"
-                          |geekdocAnchor: true
-                          |geekdocToC: 4
-                          |$adds
-                          |---
-                          |""".stripMargin
-    sb.append(headTemplate)
-    this
-  }
-
-  private def containerWeight: Int = 2 * 5
-
-  private def tbd(definition: Definition): this.type = {
-    if definition.isEmpty then { p("TBD: To Be Defined") }
-    else { this }
-  }
-
-  private def containerHead(
-    cont: Definition,
-    titleSuffix: String
-  ): this.type = {
-
-    fileHead(
-      cont.id.format + s": $titleSuffix",
-      containerWeight,
-      Option(
-        cont.brief.fold(cont.id.format + " has no brief description.")(_.s)
-      ),
-      Map(
-        "geekdocCollapseSection" -> "true",
-        "geekdocFilePath" ->
-          s"${passUtilities.makeFilePath(cont).getOrElse("no-such-file")}"
-      )
-    )
-  }
-
-  private def leafHead(definition: Definition, weight: Int): this.type = {
-    fileHead(
-      s"${definition.id.format}: ${definition.getClass.getSimpleName}",
-      weight,
-      Option(
-        definition.brief
-          .fold(definition.id.format + " has no brief description.")(_.s)
-      )
-    )
-    tbd(definition)
-  }
-
-  private def heading(heading: String, level: Int = 2): this.type = {
-    level match {
-      case 1 => h1(heading)
-      case 2 => h2(heading)
-      case 3 => h3(heading)
-      case 4 => h4(heading)
-      case 5 => h5(heading)
-      case 6 => h6(heading)
-      case _ => h2(heading)
-    }
-  }
-
-  private def h1(heading: String): this.type = {
-    sb.append(s"\n# ${bold(heading)}\n")
-    this
-  }
-
-  def h2(heading: String): this.type = {
-    sb.append(s"\n## ${bold(heading)}\n")
-    this
-  }
-
-  private def h3(heading: String): this.type = {
-    sb.append(s"\n### ${italic(heading)}\n")
-    this
-  }
-
-  private def h4(heading: String): this.type = {
-    sb.append(s"\n#### $heading\n")
-    this
-  }
-
-  private def h5(heading: String): this.type = {
-    sb.append(s"\n##### $heading\n")
-    this
-  }
-
-  private def h6(heading: String): this.type = {
-    sb.append(s"\n###### $heading\n")
-    this
-  }
-
-  def p(paragraph: String): this.type = {
-    sb.append(paragraph)
-    nl
-    this
-  }
-
-  private def italic(phrase: String): String = { s"_${phrase}_" }
-
-  private def bold(phrase: String): String = { s"*$phrase*" }
-
-  private def mono(phrase: String): String = { s"`$phrase`" }
-
-  private def notAvailable(thing: String, title: String = "Unavailable"): this.type = {
-    sb.append(s"\n{{< hint type=note icon=gdoc_error_outline title=\"$title\" >}}\n")
-    sb.append(thing)
-    sb.append("{{< /hint >}}")
-    this
-  }
-
-  private def listOf[T <: NamedValue](
-    kind: String,
-    items: Seq[T],
-    level: Int = 2
-  ): this.type = {
-    heading(kind, level)
-    val refs = items.map { definition =>
-      passUtilities.makeDocAndParentsLinks(definition)
-    }
-    list(refs)
-  }
-
-  private def listDesc(maybeDescription: Option[Description], isListItem: Boolean, indent: Int): Unit = {
-    maybeDescription match
-      case None => ()
-      case Some(description) =>
-        val ndnt = " ".repeat(indent)
-        val listItem = { if isListItem then "* " else "" }
-        sb.append(description.lines.map(line => s"$ndnt$listItem${line.s}\n"))
-  }
-
-  def list[T](items: Seq[T]): this.type = {
-    def emitPair(prefix: String, body: String): Unit = {
-      if prefix.startsWith("[") && body.startsWith("(") then {
-        sb.append(s"* $prefix$body\n")
-      } else { sb.append(s"* ${italic(prefix)}: $body\n") }
-    }
-
-    for item <- items do {
-      item match {
-        case body: String     => sb.append(s"* $body\n")
-        case rnod: RiddlValue => sb.append(s"* ${rnod.format}")
-        case (
-              prefix: String,
-              description: String,
-              sublist: Seq[String] @unchecked,
-              _: Option[Description] @unchecked
-            ) =>
-          emitPair(prefix, description)
-          sublist.foreach(s => sb.append(s"    * $s\n"))
-        case (
-              prefix: String,
-              definition: String,
-              description: Option[Description] @unchecked
-            ) =>
-          emitPair(prefix, definition)
-          listDesc(description, true, 4)
-        case (
-              prefix: String,
-              definition: String,
-              briefly: Option[LiteralString] @unchecked,
-              description: Option[Description] @unchecked
-            ) =>
-          emitPair(
-            prefix,
-            definition ++ " - " ++ briefly.map(_.s).getOrElse("{no brief}")
-          )
-          listDesc(description, true, 4)
-        case (prefix: String, body: String) => emitPair(prefix, body)
-        case (prefix: String, docBlock: Seq[String] @unchecked) =>
-          sb.append(s"* $prefix\n")
-          docBlock.foreach(s => sb.append(s"    * $s\n"))
-        case x: Any => sb.append(s"* ${x.toString}\n")
-      }
-    }
-    this
-  }
-
-  def list[T](typeOfThing: String, items: Seq[T], level: Int = 2): this.type = {
-    if items.nonEmpty then {
-      heading(typeOfThing, level)
-      list(items)
-    }
-    this
-  }
-
-  private def codeBlock(headline: String, items: Seq[Statement], level: Int = 2): this.type = {
-    if items.nonEmpty then {
-      heading(headline, level)
-      sb.append("```\\n")
-      sb.append(items.map(_.format).mkString)
-      sb.append("```\\n")
-    }
-    this
-  }
-
-  def toc(
-    kindOfThing: String,
-    contents: Seq[String],
-    level: Int = 2
-  ): this.type = {
-    if contents.nonEmpty then {
-      val items = contents.map { name =>
-        s"[$name]" -> s"(${name.toLowerCase})"
-      }
-      list[(String, String)](kindOfThing, items, level)
-    }
-    this
-  }
-
+/** Base  */
+trait MarkdownWriter extends MarkdownBasics with PassUtilities {
+  
   private def mkTocSeq(
     list: Seq[Definition]
   ): Seq[String] = {
@@ -263,16 +31,6 @@ abstract class MarkdownWriter(
     result
   }
 
-  def emitMermaidDiagram(lines: Seq[String]): this.type = {
-    p("{{< mermaid class=\"text-center\">}}")
-    lines.foreach(p)
-    p("{{< /mermaid >}}")
-    if commonOptions.debug then {
-      p("```")
-      lines.foreach(p)
-      p("```")
-    } else { this }
-  }
 
   private case class Level(name: String, href: String, children: Seq[Level]) {
     override def toString: String = {
@@ -283,7 +41,7 @@ abstract class MarkdownWriter(
   private def makeData(container: Definition, parents: Seq[String]): Level = {
     Level(
       container.identify,
-      passUtilities.makeDocLink(container, parents),
+      makeDocLink(container, parents),
       children = {
         val newParents = container.id.value +: parents
         container.definitions
@@ -311,7 +69,7 @@ abstract class MarkdownWriter(
     top: Definition,
     parents: Seq[String]
   ): this.type = {
-    if passUtilities.options.withGraphicalTOC then {
+    if options.withGraphicalTOC then {
       h2(s"Graphical $kind Index")
       val json = makeData(top, parents).toString
       val resourceName = "js/tree-map-hierarchy2.js"
@@ -336,10 +94,10 @@ abstract class MarkdownWriter(
   }
 
   private def emitC4ContainerDiagram(
-    defntn: Context,
+    definition: Context,
     parents: Seq[Definition]
-  ): this.type = {
-    val name = defntn.identify
+  ): Unit = {
+    val name = definition.identify
     val brief: Definition => String = { (defn: Definition) =>
       defn.brief.fold(s"$name is not described.")(_.s)
     }
@@ -360,24 +118,23 @@ abstract class MarkdownWriter(
     }
     val prefix = " ".repeat(parents.size * 2)
     val context_head = prefix +
-      s"Boundary($name, $name, \"${brief(defntn)}\") {"
+      s"Boundary($name, $name, \"${brief(definition)}\") {"
     val context_foot = prefix + "}"
 
-    val body = defntn.entities.map(e => prefix + s"  System(${e.id.format}, ${e.id.format}, \"${brief(e)}\")")
+    val body = definition.entities.map(e => prefix + s"  System(${e.id.format}, ${e.id.format}, \"${brief(e)}\")")
     val lines: Seq[String] = heading ++ openedBoundaries ++ Seq(context_head) ++
       body ++ Seq(context_foot) ++ closedBoundaries
     emitMermaidDiagram(lines)
   }
 
-  private def emitTerms(terms: Seq[Term]): this.type = {
+  private def emitTerms(terms: Seq[Term]): Unit = {
     list(
       "Terms",
       terms.map(t => (t.id.format, t.brief.map(_.s).getOrElse("{no brief}"), t.description))
     )
-    this
   }
 
-  private def emitFields(fields: Seq[Field]): this.type = {
+  private def emitFields(fields: Seq[Field]): Unit = {
     list(fields.map { field =>
       (field.id.format, field.typeEx.format, field.brief, field.description)
     })
@@ -387,7 +144,7 @@ abstract class MarkdownWriter(
     d: Definition,
     parents: Seq[String],
     @unused level: Int = 2
-  ): this.type = {
+  ): Unit = {
     emitTableHead(Seq("Item" -> 'C', "Value" -> 'L'))
     val brief: String =
       d.brief.map(_.s).getOrElse("Brief description missing.").trim
@@ -398,7 +155,7 @@ abstract class MarkdownWriter(
     }
     val path = (parents :+ d.id.format).mkString(".")
     emitTableRow(italic("Definition Path"), path)
-    val link = passUtilities.makeSourceLink(d)
+    val link = makeSourceLink(d)
     emitTableRow(italic("View Source Link"), s"[${d.loc}]($link)")
   }
 
@@ -413,7 +170,7 @@ abstract class MarkdownWriter(
       val pathId = rMatch.group(3)
 
       def doSub(line: String, definition: NamedValue, isAmbiguous: Boolean = false): String = {
-        val docLink = passUtilities.makeDocLink(definition)
+        val docLink = makeDocLink(definition)
         val substitution =
           if isAmbiguous then s"($kind $pathId (ambiguous))[$docLink]"
           else s" ($kind $pathId)[$docLink]"
@@ -484,12 +241,12 @@ abstract class MarkdownWriter(
         resolved match
           case None => s"unresolved path: ${pid.format}"
           case Some(res) =>
-            val slink = passUtilities.makeSourceLink(res)
+            val slink = makeSourceLink(res)
             resolved match
               case None => s"unresolved path: ${pid.format}"
               case Some(definition) =>
-                val pars = passUtilities.makeStringParents(parents.drop(1))
-                val link = passUtilities.makeDocLink(definition, pars)
+                val pars = makeStringParents(parents.drop(1))
+                val link = makeDocLink(definition, pars)
                 s"[${resolved.head.identify}]($link) [{{< icon \"gdoc_code\" >}}]($slink)"
   }
 
@@ -568,7 +325,7 @@ abstract class MarkdownWriter(
     typeEx: TypeExpression,
     parents: Seq[Definition],
     headLevel: Int = 2
-  ): this.type = {
+  ): Unit = {
     typeEx match {
       case a: AliasedTypeExpression =>
         heading("Alias Of", headLevel)
@@ -614,18 +371,18 @@ abstract class MarkdownWriter(
     }
   }
 
-  def emitType(typ: Type, stack: Seq[Definition]): this.type = {
+  def emitType(typ: Type, stack: Seq[Definition]): Unit = {
     val suffix = typ.typ match {
       case mt: AggregateUseCaseTypeExpression => mt.usecase.useCase
       case _                                  => "Type"
     }
     containerHead(typ, suffix)
-    emitDefDoc(typ, passUtilities.makeStringParents(stack))
+    emitDefDoc(typ, makeStringParents(stack))
     emitTypeExpression(typ.typ, typ +: stack)
     emitUsage(typ)
   }
 
-  private def emitTypesToc(definition: WithTypes): this.type = {
+  private def emitTypesToc(definition: WithTypes): Unit = {
     val groups = definition.types
       .groupBy { typ =>
         typ.typ match {
@@ -637,18 +394,16 @@ abstract class MarkdownWriter(
       .sortBy(_._1)
     h2("Types")
     for (label, list) <- groups do { toc(label, mkTocSeq(list), 3) }
-    this
   }
 
-  private def emitVitalDefinitionTail[OV <: OptionValue, DEF <: RiddlValue](vd: VitalDefinition[OV, DEF]): this.type = {
+  private def emitVitalDefinitionTail[OV <: OptionValue, DEF <: RiddlValue](vd: VitalDefinition[OV, DEF]): Unit = {
     emitOptions(vd.options)
     emitTerms(vd.terms)
     emitUsage(vd)
     if vd.authorRefs.nonEmpty then toc("Authors", vd.authorRefs.map(_.format))
-    this
   }
 
-  private def emitProcessorToc[OV <: OptionValue, DEF <: RiddlValue](processor: Processor[OV, DEF]): this.type = {
+  private def emitProcessorToc[OV <: OptionValue, DEF <: RiddlValue](processor: Processor[OV, DEF]): Unit = {
     if processor.types.nonEmpty then emitTypesToc(processor)
     if processor.constants.nonEmpty then toc("Constants", mkTocSeq(processor.constants))
     if processor.functions.nonEmpty then toc("Functions", mkTocSeq(processor.functions))
@@ -734,7 +489,7 @@ abstract class MarkdownWriter(
 
   def emitContext(context: Context, stack: Seq[Definition], diagram: Option[ContextMapDiagram]): this.type = {
     containerHead(context, "Context")
-    val parents = passUtilities.makeStringParents(stack)
+    val parents = makeStringParents(stack)
     emitDefDoc(context, parents)
     emitContextMap(context, diagram)
     emitOptions(context.options)
@@ -756,7 +511,7 @@ abstract class MarkdownWriter(
     parents: Seq[Definition]
   ): this.type = {
     containerHead(state, "State")
-    emitDefDoc(state, passUtilities.makeStringParents(parents))
+    emitDefDoc(state, makeStringParents(parents))
     emitERD(state.id.format, fields, parents)
     h2("Fields")
     emitFields(fields)
@@ -818,6 +573,7 @@ abstract class MarkdownWriter(
     }
     emitInvariants(entity.invariants)
     emitTypesToc(entity)
+    // for state <- entity.states do emitState(state,)
     toc("States", mkTocSeq(entity.states))
     toc("Functions", mkTocSeq(entity.functions))
     toc("Handlers", mkTocSeq(entity.handlers))
@@ -837,23 +593,23 @@ abstract class MarkdownWriter(
     this
   }
 
-  def emitSaga(saga: Saga, parents: Seq[String]): this.type = {
+  def emitSaga(saga: Saga, parents: Seq[String]): Unit = {
     containerHead(saga, "Saga")
     emitDefDoc(saga, parents)
     emitOptions(saga.options)
     emitInputOutput(saga.input, saga.output)
     emitSagaSteps(saga.sagaSteps)
+    emitIndex("Saga", saga, parents)
     emitUsage(saga)
     emitTerms(saga.terms)
-    emitIndex("Saga", saga, parents)
   }
 
   def emitApplication(
     application: Application,
     stack: Seq[Definition]
-  ): this.type = {
+  ): Unit = {
     containerHead(application, "Application")
-    val parents = passUtilities.makeStringParents(stack)
+    val parents = makeStringParents(stack)
     emitDefDoc(application, parents)
     for group <- application.groups do {
       h2(group.identify)
@@ -865,7 +621,7 @@ abstract class MarkdownWriter(
 
   def emitEpic(epic: Epic, stack: Seq[Definition]): this.type = {
     containerHead(epic, "Epic")
-    val parents = passUtilities.makeStringParents(stack)
+    val parents = makeStringParents(stack)
     emitBriefly(epic, parents)
     if epic.userStory.nonEmpty then {
       val userPid = epic.userStory.getOrElse(UserStory()).user.pathId
@@ -885,11 +641,12 @@ abstract class MarkdownWriter(
           p(italic(storyText))
       }
     }
+    emitDescription(epic.description)
     list("Visualizations", epic.shownBy.map(u => s"($u)[$u]"))
     toc("Use Cases", mkTocSeq(epic.cases))
     emitUsage(epic)
     emitTerms(epic.terms)
-    emitDescription(epic.description)
+    emitIndex("Epic", epic, parents)
   }
 
   def emitUser(u: User, parents: Seq[String]): this.type = {
@@ -898,15 +655,15 @@ abstract class MarkdownWriter(
     emitDefDoc(u, parents)
   }
 
-  def emitUseCase(uc: UseCase, parents: Seq[Definition], sds: UseCaseDiagramSupport): this.type = {
+  def emitUseCase(uc: UseCase, parents: Seq[Definition], sds: UseCaseDiagramSupport): Unit = {
     leafHead(uc, weight = 20)
-    val parList = passUtilities.makeStringParents(parents)
+    val parList = makeStringParents(parents)
     emitDefDoc(uc, parList)
     h2("Sequence Diagram")
     parents.headOption match
       case Some(p1) =>
         val epic = p1.asInstanceOf[Epic]
-        passUtilities.outputs.outputOf[DiagramsPassOutput](DiagramsPass.name) match
+        outputs.outputOf[DiagramsPassOutput](DiagramsPass.name) match
           case Some(dpo) =>
             dpo.userCaseDiagrams.get(uc) match
               case Some(useCaseDiagramData: UseCaseDiagramData) =>
@@ -937,7 +694,7 @@ abstract class MarkdownWriter(
 
   def emitStreamlet(proc: Streamlet, parents: Seq[Definition]): this.type = {
     leafHead(proc, weight = 30)
-    val parList = passUtilities.makeStringParents(parents)
+    val parList = makeStringParents(parents)
     emitDefDoc(proc, parList)
     h2("Inlets")
     proc.inlets.foreach { inlet =>
@@ -964,6 +721,7 @@ abstract class MarkdownWriter(
   ): this.type = {
     containerHead(projector, "Projector")
     emitDefDoc(projector, parents)
+
     emitProcessorToc[ProjectorOption, OccursInProjector](projector)
     emitIndex("Projector", projector, parents)
   }
@@ -986,24 +744,6 @@ abstract class MarkdownWriter(
     emitIndex("Adaptor", adaptor, parents)
   }
 
-  private def emitTableHead(columnTitles: Seq[(String, Char)]): this.type = {
-    sb.append(columnTitles.map(_._1).mkString("| ", " | ", " |\n"))
-    val dashes = columnTitles.map { case (s, c) =>
-      c match {
-        case 'C' => ":---:" ++ " ".repeat(Math.max(s.length - 5, 0))
-        case 'L' => ":---" ++ " ".repeat(Math.max(s.length - 4, 0))
-        case 'R' => " ".repeat(Math.max(s.length - 4, 0)) ++ "---:"
-      }
-    }
-    sb.append(dashes.mkString("| ", " | ", " |\n"))
-    this
-  }
-
-  private def emitTableRow(firstCol: String, remainingCols: String*): this.type = {
-    val row = firstCol +: remainingCols
-    sb.append(row.mkString("| ", " | ", " |\n"))
-    this
-  }
 
   private def makeIconLink(id: String, title: String, link: String): String = {
     if link.nonEmpty then { s"[{{< icon \"$id\" >}}]($link \"$title\")" }
@@ -1057,7 +797,7 @@ abstract class MarkdownWriter(
       Some("Statistical information about the RIDDL model documented")
     )
 
-    val stats = passUtilities.outputs.outputOf[StatsOutput](StatsPass.name).getOrElse(StatsOutput())
+    val stats = outputs.outputOf[StatsOutput](StatsPass.name).getOrElse(StatsOutput())
     emitTableHead(
       Seq(
         "Category" -> 'L',

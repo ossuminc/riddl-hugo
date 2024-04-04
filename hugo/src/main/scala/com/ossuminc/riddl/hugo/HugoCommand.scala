@@ -135,8 +135,8 @@ class HugoCommand extends PassCommand[HugoCommand.Options]("hugo") {
           .action((v, c) => c.copy(hugoThemeName = Option(v)))
           .text("optional hugo theme name to use")
           .validate {
-            case "geekdoc" | "GeekDoc" => Right(Some("geekdoc"))
-            case "techdoc" | "Techdoc" => Right(Some("techdoc"))
+            case "geekdoc" | "GeekDoc" => Right(Some("GeekDoc"))
+            case "techdoc" | "Techdoc" => Right(Some("TechDoc"))
           },
         opt[Boolean]('e', name = "erase-output")
           .text("Erase entire output directory before putting out files")
@@ -196,7 +196,7 @@ class HugoCommand extends PassCommand[HugoCommand.Options]("hugo") {
       projectName <- optional(objCur, "project-name", "No Project Name") { cur =>
         cur.asString
       }
-      hugoThemeName <- optional(objCur, "hugo-theme-name", "geekdoc") { cur => cur.asString }
+      hugoThemeName <- optional(objCur, "hugo-theme-name", "GeekDoc") { cur => cur.asString }
       enterpriseName <-
         optional(objCur, "enterprise-name", "No Enterprise Name") { cur =>
           cur.asString

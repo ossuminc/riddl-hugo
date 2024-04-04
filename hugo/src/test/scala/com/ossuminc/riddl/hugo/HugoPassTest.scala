@@ -6,10 +6,7 @@
 
 package com.ossuminc.riddl.hugo
 
-import com.ossuminc.riddl.commands.CommandOptions
-import com.ossuminc.riddl.commands.CommandPlugin
 import com.ossuminc.riddl.passes.PassesResult
-import com.ossuminc.riddl.hugo.HugoCommand
 import com.ossuminc.riddl.testkit.RunCommandOnExamplesTest
 import org.scalatest.Assertion
 
@@ -31,8 +28,6 @@ class HugoPassTest
   val passing_test_cases: Seq[String] = Seq(
     "ToDoodles",
     "FooBarSuccess/FooBar",
-    // FIXME: re-enable when this case code is corrected
-    // FIXME: "ReactiveBBQ/ReactiveBBQ",
     "dokn"
   )
   override def validateTestName(name: String): Boolean =

@@ -50,7 +50,7 @@ case class HugoPass(
     with PassUtilities
     with TranslatingState[MarkdownWriter]
     with UseCaseDiagramSupport {
-
+  
   requires(SymbolsPass)
   requires(ResolutionPass)
   requires(ValidationPass)
@@ -60,19 +60,10 @@ case class HugoPass(
     options.outputRoot.getFileName.toString.nonEmpty,
     "Output path is empty"
   )
-
+  
   val root: Root = input.root
   val name: String = HugoPass.name
-
-  lazy val commonOptions: CommonOptions = input.commonOptions
-  lazy val refMap: ReferenceMap = outputs.outputOf[ResolutionOutput](ResolutionPass.name).get.refMap
-
-  lazy val symbolsOutput: SymbolsOutput = outputs.symbols
-  lazy val usage: Usages = outputs.usage
-  lazy val diagrams: DiagramsPassOutput =
-    outputs.outputOf[DiagramsPassOutput](DiagramsPass.name).getOrElse(DiagramsPassOutput())
-  lazy val passesResult: PassesResult = PassesResult(input, outputs)
-
+  
   options.inputFile match {
     case Some(inFile) =>
       if Files.exists(inFile) then makeDirectoryStructure(options.inputFile)
@@ -90,10 +81,10 @@ case class HugoPass(
     }
     val path = parDir.resolve(fileName)
     val mdw: MarkdownWriter = options.hugoThemeName match {
-      case Some(GeekDocTheme.name) | None => GeekDocTheme(path, commonOptions, symbolsOutput, refMap, usage, this)
-      case Some(DotdockTheme.name) => DotdockTheme(path, commonOptions, symbolsOutput, refMap, usage, this)
-      case Some(s) => messages.addError((0, 0), s"Hugo theme named '$s' is not supported, using GeekDoc ")
-        GeekDocTheme(path, commonOptions, symbolsOutput, refMap, usage, this)
+      case Some(GeekDocTheme.name) | None => GeekDocTheme(path, input, outputs, options)
+      case Some(DotdockTheme.name) => DotdockTheme(path, input, outputs, options)
+      case Some(s) => messages.addWarning((0, 0), s"Hugo theme named '$s' is not supported, using GeekDoc ")
+        GeekDocTheme(path, input, outputs, options)
     }
     addFile(mdw)
     mdw
@@ -115,7 +106,6 @@ case class HugoPass(
 
         container match {
           case a: Application => mkd.emitApplication(a, stack)
-          case t: Type        => mkd.emitType(t, stack)
           case s: State =>
             val maybeType = refMap.definitionOf[Type](s.typ.pathId, s)
             maybeType match {
@@ -127,7 +117,6 @@ case class HugoPass(
                 mkd.emitState(s, Seq.empty[Field], stack)
             }
           case h: Handler => mkd.emitHandler(h, parents)
-          // These are all handled in emitHandler
           case f: Function => mkd.emitFunction(f, parents)
           case e: Entity   => mkd.emitEntity(e, parents)
           case c: Context =>
@@ -135,11 +124,11 @@ case class HugoPass(
             mkd.emitContext(c, stack, maybeDiagram)
           case d: Domain =>
             val diagram = DomainMapDiagram(d)
-            val summary_link: Option[String] = for {
-              summary <- makeMessageSummary(d)
-              fileName = summary.filePath.getFileName.toString.dropRight(3).toLowerCase
-            } yield {
-              makeDocLink(d) + "/" + fileName
+            val summary_link = makeMessageSummary(d) match {
+              case Some(summary) =>
+                val fileName = summary.filePath.getFileName.toString.dropRight(3).toLowerCase
+                Some(makeDocLink(d) + "/" + fileName)
+              case None => None 
             }
             mkd.emitDomain(d, parents, summary_link, diagram)
 
@@ -149,13 +138,12 @@ case class HugoPass(
           case r: Repository => mkd.emitRepository(r, parents)
           case s: Saga       => mkd.emitSaga(s, parents)
           case e: Epic       => mkd.emitEpic(e, stack)
-          case uc: UseCase =>
-            mkd.emitUseCase(uc, stack, this)
+          case uc: UseCase   => mkd.emitUseCase(uc, stack, this)
 
           case _: OnOtherClause | _: OnInitClause | _: OnMessageClause | _: OnTerminationClause | _: Author |
               _: Enumerator | _: Field | _: Method | _: Term | _: Constant | _: Invariant | _: Inlet | _: Outlet |
               _: Connector | _: SagaStep | _: User | _: Interaction | _: Root | _: Include[Definition] @unchecked |
-              _: Output | _: Input | _: Group | _: ContainedGroup =>
+              _: Output | _: Input | _: Group | _: ContainedGroup | _: Type =>
           // All of these are handled above in their containers content contribution
         }
       case _: AST.NonDefinitionValues =>
@@ -360,7 +348,7 @@ case class HugoPass(
 
   private def makeMessageSummary(forDomain: Domain): Option[MarkdownWriter] = {
     if options.withMessageSummary then {
-      Timer.time("Make Messages Summary") {
+      Timer.time(s"Messages Summary for ${forDomain.identify}") {
         outputs.outputOf[MessageOutput](MessagesPass.name) match {
           case Some(mo) =>
             val fileName = s"${forDomain.id.value}-messages.md"
