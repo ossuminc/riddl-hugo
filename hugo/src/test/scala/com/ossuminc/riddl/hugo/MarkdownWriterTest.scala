@@ -7,6 +7,7 @@
 package com.ossuminc.riddl.hugo
 
 import com.ossuminc.riddl.diagrams.mermaid.DomainMapDiagram
+import com.ossuminc.riddl.hugo.writers.MarkdownWriter
 import com.ossuminc.riddl.language.AST.Root
 import com.ossuminc.riddl.language.parsing.RiddlParserInput
 import com.ossuminc.riddl.passes.PassesResult
@@ -39,7 +40,7 @@ class MarkdownWriterTest extends HugoTestBase {
           val domain = root.domains.head
           val mkd = makeMDW(output, PassesResult.empty)
           val diagram = DomainMapDiagram(domain)
-          mkd.emitDomain(domain, paths.dropRight(1), None, diagram)
+          mkd.emitDomain(domain, paths.dropRight(1))
           val emitted = mkd.toString
           info(emitted)
           val expected =

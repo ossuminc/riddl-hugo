@@ -19,6 +19,7 @@ import com.ossuminc.riddl.passes.validate.ValidationPass
 import com.ossuminc.riddl.stats.StatsPass
 import com.ossuminc.riddl.utils.{PathUtils, Tar, Timer, TreeCopyFileVisitor, Zip}
 import com.ossuminc.riddl.hugo.themes.*
+import com.ossuminc.riddl.hugo.writers.MarkdownWriter
 
 import java.io.File
 import java.net.URL
@@ -48,8 +49,9 @@ case class HugoPass(
 ) extends Pass(input, outputs)
     with PassUtilities
     with TranslatingState[MarkdownWriter]
-    with UseCaseDiagramSupport {
-  
+    with UseCaseDiagramSupport
+    with Summarizer {
+
   requires(SymbolsPass)
   requires(ResolutionPass)
   requires(ValidationPass)
@@ -59,10 +61,10 @@ case class HugoPass(
     options.outputRoot.getFileName.toString.nonEmpty,
     "Output path is empty"
   )
-  
+
   val root: Root = input.root
   val name: String = HugoPass.name
-  
+
   options.inputFile match {
     case Some(inFile) =>
       if Files.exists(inFile) then makeDirectoryStructure(options.inputFile)
@@ -74,15 +76,16 @@ case class HugoPass(
   private val maybeAuthor = root.authors.headOption.orElse { root.domains.headOption.flatMap(_.authors.headOption) }
   writeConfigToml(options, maybeAuthor)
 
-  private def addFile(parents: Seq[String], fileName: String): MarkdownWriter = {
+  def makeWriter(parents: Seq[String], fileName: String): MarkdownWriter = {
     val parDir = parents.foldLeft(options.contentRoot) { (next, par) =>
       next.resolve(par)
     }
     val path = parDir.resolve(fileName)
     val mdw: MarkdownWriter = options.hugoThemeName match {
       case Some(GeekDocTheme.name) | None => GeekDocTheme(path, input, outputs, options)
-      case Some(DotdockTheme.name) => DotdockTheme(path, input, outputs, options)
-      case Some(s) => messages.addWarning((0, 0), s"Hugo theme named '$s' is not supported, using GeekDoc ")
+      case Some(DotdockTheme.name)        => DotdockTheme(path, input, outputs, options)
+      case Some(s) =>
+        messages.addWarning((0, 0), s"Hugo theme named '$s' is not supported, using GeekDoc ")
         GeekDocTheme(path, input, outputs, options)
     }
     addFile(mdw)
@@ -104,46 +107,23 @@ case class HugoPass(
         val (mkd: MarkdownWriter, parents) = setUpContainer(container, stack)
 
         container match {
+          case a: Adaptor     => mkd.emitAdaptor(a, parents)
           case a: Application => mkd.emitApplication(a, stack)
-          case s: State =>
-            val maybeType = refMap.definitionOf[Type](s.typ.pathId, s)
-            maybeType match {
-              case Some(typ: AggregateTypeExpression) =>
-                mkd.emitState(s, typ.fields, stack)
-              case Some(_) =>
-                mkd.emitState(s, Seq.empty[Field], stack)
-              case None =>
-                mkd.emitState(s, Seq.empty[Field], stack)
-            }
-          case h: Handler => mkd.emitHandler(h, parents)
-          case f: Function => mkd.emitFunction(f, parents)
-          case e: Entity   => mkd.emitEntity(e, parents)
-          case c: Context =>
-            val maybeDiagram = diagrams.contextDiagrams.get(c).map(data => ContextMapDiagram(c, data))
-            mkd.emitContext(c, stack, maybeDiagram)
-          case d: Domain =>
-            val diagram = DomainMapDiagram(d)
-            val summary_link = makeMessageSummary(d) match {
-              case Some(summary) =>
-                val fileName = summary.filePath.getFileName.toString.dropRight(3).toLowerCase
-                Some(makeDocLink(d) + "/" + fileName)
-              case None => None 
-            }
-            mkd.emitDomain(d, parents, summary_link, diagram)
+          case c: Context     => mkd.emitContext(c, stack)
+          case d: Domain      => mkd.emitDomain(d, parents)
+          case e: Entity      => mkd.emitEntity(e, stack)
+          case e: Epic        => mkd.emitEpic(e, stack)
+          case p: Projector   => mkd.emitProjector(p, parents)
+          case r: Repository  => mkd.emitRepository(r, parents)
+          case s: Saga        => mkd.emitSaga(s, parents)
+          case s: Streamlet   => mkd.emitStreamlet(s, stack)
+          case uc: UseCase    => mkd.emitUseCase(uc, stack, this)
 
-          case a: Adaptor    => mkd.emitAdaptor(a, parents)
-          case s: Streamlet  => mkd.emitStreamlet(s, stack)
-          case p: Projector  => mkd.emitProjector(p, parents)
-          case r: Repository => mkd.emitRepository(r, parents)
-          case s: Saga       => mkd.emitSaga(s, parents)
-          case e: Epic       => mkd.emitEpic(e, stack)
-          case uc: UseCase   => mkd.emitUseCase(uc, stack, this)
-
-          case _: OnOtherClause | _: OnInitClause | _: OnMessageClause | _: OnTerminationClause | _: Author |
-              _: Enumerator | _: Field | _: Method | _: Term | _: Constant | _: Invariant | _: Inlet | _: Outlet |
-              _: Connector | _: SagaStep | _: User | _: Interaction | _: Root | _: Include[Definition] @unchecked |
-              _: Output | _: Input | _: Group | _: ContainedGroup | _: Type =>
-          // All of these are handled above in their containers content contribution
+          case _: Function | _: Handler | _: State | _: OnOtherClause | _: OnInitClause | _: OnMessageClause |
+              _: OnTerminationClause | _: Author | _: Enumerator | _: Field | _: Method | _: Term | _: Constant |
+              _: Invariant | _: Inlet | _: Outlet | _: Connector | _: SagaStep | _: User | _: Interaction | _: Root |
+              _: Include[Definition] @unchecked | _: Output | _: Input | _: Group | _: ContainedGroup | _: Type =>
+          // All of these are handled above in their containers content output
         }
       case _: AST.NonDefinitionValues =>
       // These aren't definitions so don't count for documentation generation (no names)
@@ -151,6 +131,7 @@ case class HugoPass(
   }
 
   override def postProcess(root: AST.Root): Unit = {
+    summarize()
     close(root)
   }
 
@@ -275,106 +256,12 @@ case class HugoPass(
     loadStaticAssets(inputPath, options)
   }
 
-  private def makeIndex(root: Root): Unit = {
-    Timer.time("Index Creation") {
-
-      val mdw = addFile(Seq.empty[String], "_index.md")
-      mdw.fileHead("Index", 10, Option("The main index to the content"))
-      mdw.h2("Root Overview")
-      val diagram = RootOverviewDiagram(root)
-      mdw.emitMermaidDiagram(diagram.generate)
-      mdw.h2("Domains")
-      val domains = root.domains
-        .sortBy(_.id.value)
-        .map(d => s"[${d.id.value}](${d.id.value.toLowerCase}/)")
-      mdw.list(domains)
-      mdw.h2("Indices")
-      val glossary =
-        if options.withGlossary then { Seq("[Glossary](glossary)") }
-        else { Seq.empty[String] }
-      val todoList = {
-        if options.withTODOList then { Seq("[To Do List](todolist)") }
-        else { Seq.empty[String] }
-      }
-      val statistics = {
-        if options.withStatistics then { Seq("[Statistics](statistics)") }
-        else { Seq.empty[String] }
-      }
-      mdw.list(glossary ++ todoList ++ statistics)
-      mdw.emitIndex("Full", root, Seq.empty[String])
-    }
-  }
-
-  private val glossaryWeight = 970
-  private val toDoWeight = 980
-  private val statsWeight = 990
-
-  private def makeStatistics(): Unit = {
-    if options.withStatistics then {
-      Timer.time("Make Statistics") {
-        val mdw = addFile(Seq.empty[String], fileName = "statistics.md")
-        mdw.emitStatistics(statsWeight)
-      }
-    }
-  }
-
-  private def makeGlossary(): Unit = {
-    if options.withGlossary then {
-      Timer.time("Make Glossary") {
-        val mdw = addFile(Seq.empty[String], "glossary.md")
-        outputs.outputOf[GlossaryOutput](GlossaryPass.name) match {
-          case Some(go) =>
-            mdw.emitGlossary(glossaryWeight, go.entries)
-          case None =>
-            mdw.emitGlossary(glossaryWeight, Seq.empty)
-        }
-      }
-    }
-  }
-
-  private def makeToDoList(): Unit = {
-    if options.withTODOList then
-      Timer.time("Make ToDo List") {
-        outputs.outputOf[ToDoListOutput](ToDoListPass.name) match {
-          case Some(output) =>
-            val mdw = addFile(Seq.empty[String], "todolist.md")
-            mdw.emitToDoList(toDoWeight, output.collected)
-          case None =>
-          // do nothing
-        }
-      }
-  }
-
-  private def makeMessageSummary(forDomain: Domain): Option[MarkdownWriter] = {
-    if options.withMessageSummary then {
-      Timer.time(s"Messages Summary for ${forDomain.identify}") {
-        outputs.outputOf[MessageOutput](MessagesPass.name) match {
-          case Some(mo) =>
-            val fileName = s"${forDomain.id.value}-messages.md"
-            val infos = mo.collected.filter(_.link.contains(forDomain.id.value.toLowerCase))
-            val mdw = {
-              addFile(Seq(forDomain.id.value), fileName)
-            }
-            mdw.emitMessageSummary(forDomain, infos)
-            Some(mdw)
-          case None =>
-            // just skip
-            None
-        }
-      }
-    } else None
-  }
-
   private def makeSystemLandscapeView: Seq[String] = {
     val rod = new RootOverviewDiagram(root)
     rod.generate
   }
 
   private def close(root: Root): Unit = {
-    makeIndex(root)
-    makeGlossary()
-    makeToDoList()
-    makeStatistics()
     Timer.time(s"Writing ${this.files.size} Files") {
       writeFiles(commonOptions.verbose || commonOptions.debug)
     }
@@ -397,7 +284,7 @@ case class HugoPass(
   ): (MarkdownWriter, Seq[String]) = {
     addDir(c.id.format)
     val pars = makeStringParents(stack)
-    addFile(pars :+ c.id.format, "_index.md") -> pars
+    makeWriter(pars :+ c.id.format, "_index.md") -> pars
   }
 
   private def setUpLeaf(
@@ -405,7 +292,7 @@ case class HugoPass(
     stack: Seq[Definition]
   ): (MarkdownWriter, Seq[String]) = {
     val pars = makeStringParents(stack)
-    addFile(pars, d.id.format + ".md") -> pars
+    makeWriter(pars, d.id.format + ".md") -> pars
   }
 
   // scalastyle:off method.length

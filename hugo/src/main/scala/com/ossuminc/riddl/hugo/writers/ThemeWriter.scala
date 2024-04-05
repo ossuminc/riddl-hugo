@@ -1,6 +1,5 @@
-package com.ossuminc.riddl.hugo.themes
+package com.ossuminc.riddl.hugo.writers
 
-import com.ossuminc.riddl.hugo.{HugoCommand, MarkdownBasics, MarkdownWriter, PassUtilities}
 import com.ossuminc.riddl.language.AST.*
 import com.ossuminc.riddl.language.Messages
 import com.ossuminc.riddl.passes.{PassInput, PassesOutput}
@@ -10,8 +9,7 @@ trait ThemeWriter {
 
   def themeName: String
 
-  protected val messages: Messages.Accumulator = Messages.Accumulator.empty 
-
+  protected val messages: Messages.Accumulator = Messages.Accumulator.empty
 
   def fileHead(
     title: String,

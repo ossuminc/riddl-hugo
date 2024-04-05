@@ -1,13 +1,13 @@
-package com.ossuminc.riddl.hugo
+package com.ossuminc.riddl.hugo.writers
 
-import com.ossuminc.riddl.hugo.themes.ThemeWriter
+import com.ossuminc.riddl.hugo.writers.{MarkdownWriter, ThemeWriter}
 import com.ossuminc.riddl.language.AST.*
 import com.ossuminc.riddl.utils.TextFileWriter
 
-trait MarkdownBasics extends TextFileWriter with ThemeWriter { this: MarkdownWriter =>  
+trait MarkdownBasics extends TextFileWriter with ThemeWriter { this: MarkdownWriter =>
 
   protected val containerWeight: Int = 2 * 5
-  
+
   protected def tbd(definition: Definition): Unit = {
     if definition.isEmpty then {
       p("TBD: To Be Defined")
@@ -150,6 +150,11 @@ trait MarkdownBasics extends TextFileWriter with ThemeWriter { this: MarkdownWri
           if isListItem then "* " else ""
         }
         sb.append(description.lines.map(line => s"$ndnt$listItem${line.s}\n"))
+  }
+  
+  def definitionToc(kindOfThing: String, list:Seq[Definition], level:Int = 2): Unit = {
+    val strList = list.map(c => c.id.value)
+    toc(kindOfThing, strList, level)
   }
 
   def toc(

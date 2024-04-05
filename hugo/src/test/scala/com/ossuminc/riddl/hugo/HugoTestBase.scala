@@ -1,6 +1,7 @@
 package com.ossuminc.riddl.hugo
 
 import com.ossuminc.riddl.hugo.themes.GeekDocTheme
+import com.ossuminc.riddl.hugo.writers.MarkdownWriter
 import com.ossuminc.riddl.language.{CommonOptions, Messages}
 import com.ossuminc.riddl.language.Messages.Messages
 import com.ossuminc.riddl.language.AST.Root

@@ -1,6 +1,7 @@
 package com.ossuminc.riddl.hugo.themes
 
-import com.ossuminc.riddl.hugo.{HugoCommand, MarkdownWriter, PassUtilities}
+import com.ossuminc.riddl.hugo.writers.MarkdownWriter
+import com.ossuminc.riddl.hugo.{HugoCommand, PassUtilities}
 import com.ossuminc.riddl.language.{AST, CommonOptions}
 import com.ossuminc.riddl.language.AST.*
 import com.ossuminc.riddl.passes.{PassInput, PassesOutput}
