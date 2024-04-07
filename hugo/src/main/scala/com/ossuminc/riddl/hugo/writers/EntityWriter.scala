@@ -13,41 +13,40 @@ trait EntityWriter { this: MarkdownWriter =>
     parents: Parents
   ): this.type = {
     h2(state.identify)
-    val stringParents = makeStringParents(parents)
-    emitDefDoc(state, stringParents)
+    emitDefDoc(state, parents)
     val maybeType = refMap.definitionOf[Type](state.typ.pathId, state)
     val fields = maybeType match {
       case Some(typ: AggregateTypeExpression) => typ.fields
-      case Some(_) => Seq.empty[Field]
-      case None => Seq.empty[Field]
+      case Some(_)                            => Seq.empty[Field]
+      case None                               => Seq.empty[Field]
     }
     emitERD(state.id.format, fields, parents)
     h2("Fields")
     emitFields(fields)
-    for h <- state.handlers do emitHandler(h, state.id.value +: stringParents)
+    for h <- state.handlers do emitHandler(h, state +: parents)
     emitUsage(state)
   }
 
   private def emitERD(
-                       name: String,
-                       fields: Seq[Field],
-                       parents: Seq[Definition]
-                     ): Unit = {
+    name: String,
+    fields: Seq[Field],
+    parents: Seq[Definition]
+  ): Unit = {
     h2("Entity Relationships")
     val erd = EntityRelationshipDiagram(refMap)
     val lines = erd.generate(name, fields, parents)
     emitMermaidDiagram(lines)
   }
 
-  def emitHandler(handler: Handler, parents: Seq[String]): this.type = {
+  def emitHandler(handler: Handler, parents: Parents): this.type = {
     containerHead(handler, "Handler")
     emitDefDoc(handler, parents)
     handler.clauses.foreach { clause =>
       clause match {
-        case oic: OnInitClause => h3(oic.kind)
-        case omc: OnMessageClause => h3(clause.kind + " " + omc.msg.format)
+        case oic: OnInitClause        => h3(oic.kind)
+        case omc: OnMessageClause     => h3(clause.kind + " " + omc.msg.format)
         case otc: OnTerminationClause => h3(otc.kind)
-        case ooc: OnOtherClause => h3(ooc.kind)
+        case ooc: OnOtherClause       => h3(ooc.kind)
       }
       emitShortDefDoc(clause)
       codeBlock("Statements", clause.statements, 4)
@@ -60,21 +59,20 @@ trait EntityWriter { this: MarkdownWriter =>
 
   def emitEntity(entity: Entity, parents: Parents): Unit = {
     containerHead(entity, "Entity")
-    val stringParents = makeStringParents(parents)
-    emitDefDoc(entity, stringParents)
+    emitDefDoc(entity, parents)
     emitOptions(entity.options)
     if entity.hasOption[EntityIsFiniteStateMachine] then {
       h2("Finite State Machine")
       emitFiniteStateMachine(entity)
     }
     emitInvariants(entity.invariants)
-    emitTypesToc(entity)
+    emitTypes(entity, entity +: parents)
     for state <- entity.states do emitState(state, entity +: parents)
-    for handler <- entity.handlers do emitHandler(handler, entity.id.value +: stringParents)
-    for function <- entity.functions do emitFunction(function, entity.id.value +: stringParents)
+    for handler <- entity.handlers do emitHandler(handler, entity +: parents)
+    for function <- entity.functions do emitFunction(function, entity +: parents)
+    emitProcessorDetails(entity, parents)
     emitUsage(entity)
     emitTerms(entity.terms)
-    emitIndex("Entity", entity, stringParents)
   }
 
 }

@@ -86,7 +86,7 @@ trait MarkdownBasics extends TextFileWriter with ThemeWriter { this: MarkdownWri
     for item <- items do {
       item match {
         case body: String     => sb.append(s"* $body\n")
-        case rnod: RiddlValue => sb.append(s"* ${rnod.format}")
+        case rval: RiddlValue => sb.append(s"* ${rval.format}")
         case (
               prefix: String,
               description: String,

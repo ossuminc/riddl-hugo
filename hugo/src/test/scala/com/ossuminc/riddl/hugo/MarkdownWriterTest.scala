@@ -40,7 +40,7 @@ class MarkdownWriterTest extends HugoTestBase {
           val domain = root.domains.head
           val mkd = makeMDW(output, PassesResult.empty)
           val diagram = DomainMapDiagram(domain)
-          mkd.emitDomain(domain, paths.dropRight(1))
+          mkd.emitDomain(domain, Seq(root))
           val emitted = mkd.toString
           info(emitted)
           val expected =

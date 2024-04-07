@@ -52,6 +52,8 @@ case class DotdockTheme(
   def notAvailable(thing: String, title: String = "Unavailable"): Unit = ???
 
   def emitMermaidDiagram(lines: Seq[String]): Unit = ???
+  
+  def processorIndex(processor: Processor[_,_]): Unit = ???
 
 
   // Members declared in com.ossuminc.riddl.hugo.themes.ThemeWriter 
@@ -80,4 +82,5 @@ case class DotdockTheme(
     // weight = 2
   }
 
+  override def processorToc(processor: Processor[_, _]): Unit = ???
 }

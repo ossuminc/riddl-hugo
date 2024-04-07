@@ -29,6 +29,8 @@ trait ThemeWriter {
   def emitMermaidDiagram(lines: Seq[String]): Unit
 
   def makeDocLink(definition: NamedValue, parents: Seq[String]): String
-  
+
   def makeDocAndParentsLinks(definition: NamedValue): String
+
+  def processorToc(processor: Processor[_, _]): Unit
 }

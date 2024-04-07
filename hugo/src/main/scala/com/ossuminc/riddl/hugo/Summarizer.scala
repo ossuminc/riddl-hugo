@@ -11,6 +11,8 @@ trait Summarizer { this: HugoPass =>
     makeGlossary()
     makeToDoList()
     makeStatistics()
+    
+    // TODO: makeUsers()
     if options.withMessageSummary then for d <- root.domains do makeMessageSummary(d)
   }
 
@@ -49,7 +51,6 @@ trait Summarizer { this: HugoPass =>
         }
       }
       mdw.list(glossary ++ todoList ++ statistics)
-      mdw.emitIndex("Full", root, Seq.empty[String])
     }
   }
 

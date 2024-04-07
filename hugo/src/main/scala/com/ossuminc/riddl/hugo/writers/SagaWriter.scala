@@ -2,6 +2,7 @@ package com.ossuminc.riddl.hugo.writers
 
 import com.ossuminc.riddl.hugo.writers.MarkdownWriter
 import com.ossuminc.riddl.language.AST.*
+import com.ossuminc.riddl.passes.symbols.Symbols.Parents
 
 trait SagaWriter { this: MarkdownWriter =>
 
@@ -16,14 +17,14 @@ trait SagaWriter { this: MarkdownWriter =>
     this
   }
 
-  def emitSaga(saga: Saga, parents: Seq[String]): Unit = {
+  def emitSaga(saga: Saga, parents: Parents): Unit = {
     containerHead(saga, "Saga")
     emitDefDoc(saga, parents)
     emitOptions(saga.options)
     emitInputOutput(saga.input, saga.output)
     emitSagaSteps(saga.sagaSteps)
+    // emitProcessorDetails(saga, parents)
     emitUsage(saga)
     emitTerms(saga.terms)
-    emitIndex("Saga", saga, parents)
   }
 }

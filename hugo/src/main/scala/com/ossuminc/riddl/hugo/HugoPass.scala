@@ -95,30 +95,27 @@ case class HugoPass(
   override def process(value: AST.RiddlValue, parents: ParentStack): Unit = {
     val stack = parents.toSeq
     value match {
-      case c: Connector =>
-        val (md: MarkdownWriter, parents) = setUpLeaf(c, stack)
-        md.emitConnector(c, parents)
-      case u: User =>
-        val (md: MarkdownWriter, parents) = setUpLeaf(u, stack)
-        md.emitUser(u, parents)
+      // We only process containers here since they start their own
+      // documentation section. Everything else is a leaf or a detail
+      // on the container's index page.
       case container: Definition =>
-        // Everything else is a container and definitely needs its own page
-        // and glossary entry.
-        val (mkd: MarkdownWriter, parents) = setUpContainer(container, stack)
+        // Create the writer for this container
+        val mkd: MarkdownWriter = setUpContainer(container, stack)
 
-        container match {
-          case a: Adaptor     => mkd.emitAdaptor(a, parents)
+        container match { // match the processors
+          case a: Adaptor     => mkd.emitAdaptor(a, stack)
           case a: Application => mkd.emitApplication(a, stack)
           case c: Context     => mkd.emitContext(c, stack)
-          case d: Domain      => mkd.emitDomain(d, parents)
+          case d: Domain      => mkd.emitDomain(d, stack)
           case e: Entity      => mkd.emitEntity(e, stack)
           case e: Epic        => mkd.emitEpic(e, stack)
-          case p: Projector   => mkd.emitProjector(p, parents)
-          case r: Repository  => mkd.emitRepository(r, parents)
-          case s: Saga        => mkd.emitSaga(s, parents)
+          case p: Projector   => mkd.emitProjector(p, stack)
+          case r: Repository  => mkd.emitRepository(r, stack)
+          case s: Saga        => mkd.emitSaga(s, stack)
           case s: Streamlet   => mkd.emitStreamlet(s, stack)
           case uc: UseCase    => mkd.emitUseCase(uc, stack, this)
 
+          // ignore the non-processors
           case _: Function | _: Handler | _: State | _: OnOtherClause | _: OnInitClause | _: OnMessageClause |
               _: OnTerminationClause | _: Author | _: Enumerator | _: Field | _: Method | _: Term | _: Constant |
               _: Invariant | _: Inlet | _: Outlet | _: Connector | _: SagaStep | _: User | _: Interaction | _: Root |
@@ -281,18 +278,18 @@ case class HugoPass(
   private def setUpContainer(
     c: Definition,
     stack: Seq[Definition]
-  ): (MarkdownWriter, Seq[String]) = {
+  ): MarkdownWriter = {
     addDir(c.id.format)
     val pars = makeStringParents(stack)
-    makeWriter(pars :+ c.id.format, "_index.md") -> pars
+    makeWriter(pars :+ c.id.format, "_index.md")
   }
 
   private def setUpLeaf(
     d: Definition,
     stack: Seq[Definition]
-  ): (MarkdownWriter, Seq[String]) = {
+  ): MarkdownWriter = {
     val pars = makeStringParents(stack)
-    makeWriter(pars, d.id.format + ".md") -> pars
+    makeWriter(pars, d.id.format + ".md")
   }
 
   // scalastyle:off method.length

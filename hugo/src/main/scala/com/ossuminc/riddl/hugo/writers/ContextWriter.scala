@@ -13,22 +13,20 @@ trait ContextWriter { this: MarkdownWriter =>
     end if
   }
 
-  def emitContext(context: Context, stack: Seq[Definition]): Unit = {
+  def emitContext(context: Context, parents: Seq[Definition]): Unit = {
     containerHead(context, "Context")
     val maybeDiagram = diagrams.contextDiagrams.get(context).map(data => ContextMapDiagram(context, data))
-    val parents = makeStringParents(stack)
     emitDefDoc(context, parents)
     emitContextMap(context, maybeDiagram)
     emitOptions(context.options)
-    emitTypesToc(context)
+    emitTypes(context, context +: parents )
     definitionToc("Entities", context.entities)
     definitionToc("Adaptors", context.adaptors)
     definitionToc("Sagas", context.sagas)
     definitionToc("Streamlets", context.streamlets)
     list("Connectors", context.connectors)
-    emitProcessorToc[ContextOption, OccursInContext](context)
+    emitProcessorDetails[ContextOption, OccursInContext](context, parents)
     // TODO: generate a diagram for the processors and pipes
-    emitIndex("Context", context, parents)
   }
 
 }

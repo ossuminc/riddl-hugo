@@ -72,35 +72,6 @@ trait MarkdownWriter
     this
   }
 
-  def emitIndex(
-    kind: String,
-    top: Definition,
-    parents: Seq[String]
-  ): this.type = {
-    if options.withGraphicalTOC then {
-      h2(s"Graphical $kind Index")
-      val json = makeData(top, parents).toString
-      val resourceName = "js/tree-map-hierarchy2.js"
-      val javascript =
-        s"""
-           |<div id="graphical-index">
-           |  <script src="https://d3js.org/d3.v7.min.js"></script>
-           |  <script src="/$resourceName"></script>
-           |  <script>
-           |    console.log('d3', d3.version)
-           |    let data = $json ;
-           |    let svg = treeMapHierarchy(data, 932);
-           |    var element = document.getElementById("graphical-index");
-           |    element.appendChild(svg);
-           |  </script>
-           |</div>
-          """.stripMargin
-      p(javascript)
-    }
-    h2(s"Textual $kind Index")
-    p("{{< toc-tree >}}")
-  }
-
   private def emitC4ContainerDiagram(
     definition: Context,
     parents: Seq[Definition]
@@ -150,7 +121,7 @@ trait MarkdownWriter
 
   protected def emitBriefly(
     d: Definition,
-    parents: Seq[String],
+    parents: Parents,
     @unused level: Int = 2
   ): Unit = {
     emitTableHead(Seq("Item" -> 'C', "Value" -> 'L'))
@@ -161,7 +132,7 @@ trait MarkdownWriter
       val authors = d.asInstanceOf[VitalDefinition[?, ?]].authorRefs
       emitTableRow(italic("Authors"), authors.map(_.format).mkString(", "))
     }
-    val path = (parents :+ d.id.format).mkString(".")
+    val path = (parents.map(_.id.value) :+ d.id.value).mkString(".")
     emitTableRow(italic("Definition Path"), path)
     val link = makeSourceLink(d)
     emitTableRow(italic("View Source Link"), s"[${d.loc}]($link)")
@@ -223,7 +194,7 @@ trait MarkdownWriter
 
   protected def emitDefDoc(
     definition: Definition,
-    parents: Seq[String],
+    parents: Parents,
     level: Int = 2
   ): this.type = {
     emitBriefly(definition, parents, level)
@@ -258,7 +229,7 @@ trait MarkdownWriter
                 s"[${resolved.head.identify}]($link) [{{< icon \"gdoc_code\" >}}]($slink)"
   }
 
-  protected def makeTypeName(
+  private def makeTypeName(
     pid: PathIdentifier,
     parents: Seq[Definition]
   ): String = {
@@ -290,7 +261,7 @@ trait MarkdownWriter
     name.replace(" ", "-")
   }
 
-  protected def resolveTypeExpression(
+  private def resolveTypeExpression(
     typeEx: TypeExpression,
     parents: Seq[Definition]
   ): String = {
@@ -320,7 +291,7 @@ trait MarkdownWriter
     }
   }
 
-  protected def emitAggregateMembers(agg: AggregateTypeExpression, parents: Seq[Definition]): this.type = {
+  private def emitAggregateMembers(agg: AggregateTypeExpression, parents: Seq[Definition]): this.type = {
     val data = agg.contents.map {
       case f: AggregateValue => (f.id.format, resolveTypeExpression(f.typeEx, parents))
       case _                 => ("", "")
@@ -379,46 +350,42 @@ trait MarkdownWriter
     }
   }
 
-  def emitType(typ: Type, stack: Seq[Definition]): Unit = {
-    val suffix = typ.typ match {
-      case mt: AggregateUseCaseTypeExpression => mt.usecase.useCase
-      case _                                  => "Type"
-    }
-    emitDefDoc(typ, makeStringParents(stack))
-    emitTypeExpression(typ.typ, typ +: stack)
+  private def emitType(typ: Type, parents: Parents): Unit = {
+    h4(typ.identify)
+    emitDefDoc(typ, parents)
+    emitTypeExpression(typ.typ, typ +: parents)
     emitUsage(typ)
   }
 
-  protected def emitTypesToc(definition: WithTypes): Unit = {
+  protected def emitTypes(definition: Definition & WithTypes, parents: Parents): Unit = {
     val groups = definition.types
       .groupBy { typ =>
         typ.typ match {
-          case mt: AggregateUseCaseTypeExpression => mt.usecase.format
-          case _                                  => "Others"
+          case mt: AggregateUseCaseTypeExpression          => mt.usecase.format
+          case AliasedTypeExpression(loc, keyword, pathId) => "Alias "
+          case EntityReferenceTypeExpression(loc, entity)  => "Reference "
+          case numericType: NumericType                    => "Numeric "
+          case PredefinedType(str)                         => "Predefined "
+          case _                                           => "Structural"
         }
       }
       .toSeq
-      .sortBy(_._1)
+      .sortBy(_._2.size)
     h2("Types")
-    for (label, list) <- groups do { definitionToc(label, list, 3) }
+    for {
+      (label, list) <- groups
+    } do {
+      h3(label + " Types")
+      for typ <- list do emitType(typ, parents)
+    }
   }
 
-  private def emitVitalDefinitionTail[OV <: OptionValue, DEF <: RiddlValue](vd: VitalDefinition[OV, DEF]): Unit = {
-    emitOptions(vd.options)
-    emitTerms(vd.terms)
-    emitUsage(vd)
-    if vd.authorRefs.nonEmpty then toc("Authors", vd.authorRefs.map(_.format))
-  }
-
-  protected def emitProcessorToc[OV <: OptionValue, DEF <: RiddlValue](processor: Processor[OV, DEF]): Unit = {
-    if processor.types.nonEmpty then emitTypesToc(processor)
-    if processor.constants.nonEmpty then definitionToc("Constants", processor.constants)
-    if processor.functions.nonEmpty then definitionToc("Functions", processor.functions)
-    if processor.invariants.nonEmpty then definitionToc("Invariants", processor.invariants)
-    if processor.handlers.nonEmpty then definitionToc("Handlers", processor.handlers)
-    if processor.inlets.nonEmpty then definitionToc("Inlets", processor.inlets)
-    if processor.outlets.nonEmpty then definitionToc("Outlets", processor.outlets)
-    emitVitalDefinitionTail[OV, DEF](processor)
+  private def emitConstants(withConstants: Definition & WithConstants, parents: Parents): Unit = {
+    h2("Constants")
+    for { c <- withConstants.constants } do
+      emitDefDoc(c, withConstants +: parents)
+      p(s"* type:  ${c.typeEx.format}")
+      p(s"* value: ${c.value.format}")
   }
 
   protected def emitAuthorInfo(authors: Seq[Author], level: Int = 2): this.type = {
@@ -446,14 +413,22 @@ trait MarkdownWriter
     this
   }
 
-  def emitFunction(function: Function, parents: Seq[String]): Unit = {
+  def emitFunction(function: Function, parents: Parents): Unit = {
     h2(function.identify)
-    emitDefDoc(function, parents)
-    emitTypesToc(function)
+    emitDefDoc(function, parents, 3)
+    emitTypes(function, parents)
     emitInputOutput(function.input, function.output)
     codeBlock("Statements", function.statements)
     emitUsage(function)
     emitTerms(function.terms)
+  }
+
+  private def emitFunctions(withFunc: Definition & WithFunctions, stack: Parents): Unit = {
+    h2("Functions")
+    for { f <- withFunc.functions } do {
+      val parents = withFunc
+      emitFunction(f, withFunc +: stack)
+    }
   }
 
   protected def emitInvariants(invariants: Seq[Invariant]): this.type = {
@@ -466,6 +441,66 @@ trait MarkdownWriter
       }
     }
     this
+  }
+
+  private def emitHandlers(
+    withHandlers: Definition & WithHandlers,
+    parents: Parents
+  ): Unit = {
+    h2("Handlers")
+    for { h <- withHandlers.handlers } do {
+      emitHandler(h, withHandlers +: parents)
+    }
+  }
+
+  private def emitInlet(inlet: Inlet, parents: Parents): Unit = {
+    emitDefDoc(inlet, parents, 3)
+    val typeRef = makePathIdRef(inlet.type_.pathId, parents)
+    p(s"Receives type $typeRef")
+  }
+
+  protected def emitInlets(withInlets: Definition & WithInlets, parents: Parents): Unit = {
+    h2("Inlets")
+    for { i <- withInlets.inlets } do {
+      emitInlet(i, withInlets +: parents)
+    }
+  }
+
+  private def emitOutlet(outlet: Outlet, parents: Parents): Unit = {
+    emitDefDoc(outlet, parents, 3)
+    val typeRef = makePathIdRef(outlet.type_.pathId, parents)
+    p(s"Transmits type $typeRef")
+  }
+
+  protected def emitOutlets(withOutlets: Definition & WithOutlets, parents: Parents): Unit = {
+    h2("Outlets")
+    for { o <- withOutlets.outlets } do {
+      emitOutlet(o, withOutlets +: parents)
+    }
+  }
+
+  protected def emitVitalDefinitionDetails[OV <: OptionValue, CT <: RiddlValue](
+    vd: VitalDefinition[OV, CT],
+    stack: Parents
+  ): Unit = {
+    emitDefDoc(vd, stack)
+    emitOptions(vd.options)
+    emitTerms(vd.terms)
+    emitUsage(vd)
+  }
+  protected def emitProcessorDetails[OV <: OptionValue, DEF <: RiddlValue](
+    processor: Processor[OV, DEF],
+    stack: Parents
+  ): Unit = {
+    emitVitalDefinitionDetails(processor, stack)
+    if processor.types.nonEmpty then emitTypes(processor, stack)
+    if processor.constants.nonEmpty then emitConstants(processor, stack)
+    if processor.functions.nonEmpty then emitFunctions(processor, stack)
+    if processor.invariants.nonEmpty then emitInvariants(processor.invariants)
+    if processor.handlers.nonEmpty then emitHandlers(processor, stack)
+    if processor.inlets.nonEmpty then emitInlets(processor, stack)
+    if processor.outlets.nonEmpty then emitOutlets(processor, stack)
+    processorToc(processor)
   }
 
 }

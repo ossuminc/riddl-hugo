@@ -108,4 +108,11 @@ case class GeekDocTheme(
     }
   }
 
+  def processorIndex(processor: Processor[_,_]): Unit = {
+    if processor.authorRefs.nonEmpty then toc("Authors", processor.authorRefs.map(_.format))
+    h2("Index")
+    p("{{< toc-tree >}}")
+  }
+
+  override def processorToc(processor: Processor[_, _]): Unit = ???
 }
