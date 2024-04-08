@@ -16,7 +16,7 @@ trait ContextWriter { this: MarkdownWriter =>
   def emitContext(context: Context, parents: Seq[Definition]): Unit = {
     containerHead(context, "Context")
     val maybeDiagram = diagrams.contextDiagrams.get(context).map(data => ContextMapDiagram(context, data))
-    emitDefDoc(context, parents)
+    emitVitalDefinitionDetails(context, parents)
     emitContextMap(context, maybeDiagram)
     emitOptions(context.options)
     emitTypes(context, context +: parents )

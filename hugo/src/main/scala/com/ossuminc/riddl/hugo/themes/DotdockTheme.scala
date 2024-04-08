@@ -47,7 +47,7 @@ case class DotdockTheme(
 
   def leafHead(definition: Definition, weight: Int): Unit = ???
 
-  def codeBlock(headline: String, items: Seq[Statement], level: Int = 2): Unit = ???
+  def codeBlock(items: Seq[Statement]): Unit = ???
 
   def notAvailable(thing: String, title: String = "Unavailable"): Unit = ???
 
@@ -81,6 +81,4 @@ case class DotdockTheme(
     // url = "https://gohugo.io/"
     // weight = 2
   }
-
-  override def processorToc(processor: Processor[_, _]): Unit = ???
 }

@@ -7,9 +7,9 @@ import com.ossuminc.riddl.passes.symbols.Symbols.Parents
 
 trait EpicWriter { this: MarkdownWriter =>
 
-
   def emitEpic(epic: Epic, parents: Parents): Unit = {
     containerHead(epic, "Epic")
+    h2(epic.identify)
     emitBriefly(epic, parents)
     if epic.userStory.nonEmpty then {
       val userPid = epic.userStory.getOrElse(UserStory()).user.pathId
@@ -30,6 +30,7 @@ trait EpicWriter { this: MarkdownWriter =>
       }
     }
     emitDescription(epic.description)
+    emitOptions(epic.options)
     list("Visualizations", epic.shownBy.map(u => s"($u)[$u]"))
     emitUsage(epic)
     emitTerms(epic.terms)

@@ -27,6 +27,21 @@ trait EntityWriter { this: MarkdownWriter =>
     emitUsage(state)
   }
 
+  def emitHandler(handler: Handler, parents: Parents, level: Int = 3): Unit = {
+    heading(handler.identify, level)
+    emitDefDoc(handler, parents)
+    emitUsage(handler)
+    handler.clauses.foreach { clause =>
+      clause match {
+        case oic: OnInitClause => heading("Initialize", level + 1)
+        case omc: OnMessageClause => heading(" On " + omc.msg.format, level + 1)
+        case otc: OnTerminationClause => heading("Terminate", level + 1)
+        case ooc: OnOtherClause => heading("Other", level + 1)
+      }
+      codeBlock(clause.statements)
+    }
+  }
+  
   private def emitERD(
     name: String,
     fields: Seq[Field],
@@ -36,23 +51,6 @@ trait EntityWriter { this: MarkdownWriter =>
     val erd = EntityRelationshipDiagram(refMap)
     val lines = erd.generate(name, fields, parents)
     emitMermaidDiagram(lines)
-  }
-
-  def emitHandler(handler: Handler, parents: Parents): this.type = {
-    containerHead(handler, "Handler")
-    emitDefDoc(handler, parents)
-    handler.clauses.foreach { clause =>
-      clause match {
-        case oic: OnInitClause        => h3(oic.kind)
-        case omc: OnMessageClause     => h3(clause.kind + " " + omc.msg.format)
-        case otc: OnTerminationClause => h3(otc.kind)
-        case ooc: OnOtherClause       => h3(ooc.kind)
-      }
-      emitShortDefDoc(clause)
-      codeBlock("Statements", clause.statements, 4)
-    }
-    emitUsage(handler)
-    this
   }
 
   private def emitFiniteStateMachine(@unused entity: Entity): Unit = ()

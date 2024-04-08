@@ -4,16 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.ossuminc.riddl.hugo
+package com.ossuminc.riddl.hugo.writers
 
 import com.ossuminc.riddl.diagrams.mermaid.DomainMapDiagram
 import com.ossuminc.riddl.hugo.writers.MarkdownWriter
+import com.ossuminc.riddl.hugo.{GlossaryEntry, HugoTestBase}
 import com.ossuminc.riddl.language.AST.Root
 import com.ossuminc.riddl.language.parsing.RiddlParserInput
 import com.ossuminc.riddl.passes.PassesResult
 
-import java.io.PrintWriter
-import java.io.StringWriter
+import java.io.{PrintWriter, StringWriter}
 import java.nio.file.Path
 
 class MarkdownWriterTest extends HugoTestBase {
@@ -21,7 +21,7 @@ class MarkdownWriterTest extends HugoTestBase {
   "MarkdownWriterTest" must {
     "emit a domain" in {
       val paths =
-        Seq[String]("hugo-translator", "target", "test-output", "container.md")
+        Seq[String]("hugo", "target", "test-output", "container.md")
       val output = Path.of(paths.head, paths.tail*)
       val input =
         """domain TestDomain {
@@ -54,16 +54,22 @@ class MarkdownWriterTest extends HugoTestBase {
               |geekdocCollapseSection: true
               |geekdocFilePath: no-such-file
               |---
+              |
+              |## *Domain 'TestDomain'*
               || Item | Value |
               || :---: | :---  |
               || _Briefly_ | Just For Testing |
               || _Authors_ |  |
-              || _Definition Path_ | hugo-translator.target.test-output.TestDomain |
+              || _Definition Path_ | Root.TestDomain |
               || _View Source Link_ | [empty(1:1)]() |
               |
               |## *Description*
               |A test domain for ensuring that documentation for domains is
               |generated sufficiently.
+              |
+              |## *Used By None*
+              |
+              |## *Uses Nothing*
               |
               |## *Domain Map*
               |{{< mermaid class="text-center">}}
@@ -87,8 +93,20 @@ class MarkdownWriterTest extends HugoTestBase {
               |
               |## *Types*
               |
-              |### _Others_
-              |* [MyString](mystring)
+              |### _Predefined  Types_
+              |
+              |#### Type 'MyString'
+              || Item | Value |
+              || :---: | :---  |
+              || _Briefly_ | Brief description missing. |
+              || _Definition Path_ | TestDomain.Root.MyString |
+              || _View Source Link_ | [empty(3:3)]() |
+              |
+              |## *Description*
+              |Just a renamed string
+              |
+              |## *Type*
+              |String
               |
               |## *Used By None*
               |
@@ -97,9 +115,6 @@ class MarkdownWriterTest extends HugoTestBase {
               |## *Author*
               |* _Name_: Reid Spencer
               |* _Email_: reid@ossuminc.com
-              |
-              |## *Textual Domain Index*
-              |{{< toc-tree >}}
               |""".stripMargin
           emitted mustBe expected
       }

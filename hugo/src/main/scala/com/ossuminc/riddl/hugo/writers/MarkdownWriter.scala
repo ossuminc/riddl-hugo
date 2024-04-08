@@ -33,6 +33,7 @@ trait MarkdownWriter
     with DomainWriter
     with EntityWriter
     with EpicWriter
+    with FunctionWriter
     with ProjectorWriter
     with RepositoryWriter
     with SagaWriter
@@ -357,7 +358,7 @@ trait MarkdownWriter
     emitUsage(typ)
   }
 
-  protected def emitTypes(definition: Definition & WithTypes, parents: Parents): Unit = {
+  protected def emitTypes(definition: Definition & WithTypes, parents: Parents, level: Int = 2): Unit = {
     val groups = definition.types
       .groupBy { typ =>
         typ.typ match {
@@ -371,11 +372,11 @@ trait MarkdownWriter
       }
       .toSeq
       .sortBy(_._2.size)
-    h2("Types")
+    heading("Types", level)
     for {
       (label, list) <- groups
     } do {
-      h3(label + " Types")
+      heading(label + " Types", level + 1)
       for typ <- list do emitType(typ, parents)
     }
   }
@@ -413,16 +414,6 @@ trait MarkdownWriter
     this
   }
 
-  def emitFunction(function: Function, parents: Parents): Unit = {
-    h2(function.identify)
-    emitDefDoc(function, parents, 3)
-    emitTypes(function, parents)
-    emitInputOutput(function.input, function.output)
-    codeBlock("Statements", function.statements)
-    emitUsage(function)
-    emitTerms(function.terms)
-  }
-
   private def emitFunctions(withFunc: Definition & WithFunctions, stack: Parents): Unit = {
     h2("Functions")
     for { f <- withFunc.functions } do {
@@ -447,7 +438,7 @@ trait MarkdownWriter
     withHandlers: Definition & WithHandlers,
     parents: Parents
   ): Unit = {
-    h2("Handlers")
+    h3("Handlers")
     for { h <- withHandlers.handlers } do {
       emitHandler(h, withHandlers +: parents)
     }
@@ -483,6 +474,7 @@ trait MarkdownWriter
     vd: VitalDefinition[OV, CT],
     stack: Parents
   ): Unit = {
+    h2(vd.identify)
     emitDefDoc(vd, stack)
     emitOptions(vd.options)
     emitTerms(vd.terms)
@@ -492,7 +484,6 @@ trait MarkdownWriter
     processor: Processor[OV, DEF],
     stack: Parents
   ): Unit = {
-    emitVitalDefinitionDetails(processor, stack)
     if processor.types.nonEmpty then emitTypes(processor, stack)
     if processor.constants.nonEmpty then emitConstants(processor, stack)
     if processor.functions.nonEmpty then emitFunctions(processor, stack)
@@ -500,7 +491,6 @@ trait MarkdownWriter
     if processor.handlers.nonEmpty then emitHandlers(processor, stack)
     if processor.inlets.nonEmpty then emitInlets(processor, stack)
     if processor.outlets.nonEmpty then emitOutlets(processor, stack)
-    processorToc(processor)
   }
 
 }

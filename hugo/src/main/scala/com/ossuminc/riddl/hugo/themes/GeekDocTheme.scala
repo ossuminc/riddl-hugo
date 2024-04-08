@@ -99,20 +99,17 @@ case class GeekDocTheme(
     }
   }
 
-  def codeBlock(headline: String, items: Seq[Statement], level: Int = 2): Unit = {
+  def codeBlock(items: Seq[Statement]): Unit = {
     if items.nonEmpty then {
-      heading(headline, level)
-      sb.append("```\\n")
-      sb.append(items.map(_.format).mkString)
-      sb.append("```\\n")
+      sb.append(s"```")
+      sb.append(items.map(_.format).mkString(new_line, new_line, new_line))
+      sb.append(s"```$new_line")
     }
   }
 
-  def processorIndex(processor: Processor[_,_]): Unit = {
+  def processorIndex(processor: Processor[_, _]): Unit = {
     if processor.authorRefs.nonEmpty then toc("Authors", processor.authorRefs.map(_.format))
     h2("Index")
     p("{{< toc-tree >}}")
   }
-
-  override def processorToc(processor: Processor[_, _]): Unit = ???
 }

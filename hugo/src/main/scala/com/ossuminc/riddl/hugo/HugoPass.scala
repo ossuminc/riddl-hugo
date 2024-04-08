@@ -109,11 +109,12 @@ case class HugoPass(
           case d: Domain      => mkd.emitDomain(d, stack)
           case e: Entity      => mkd.emitEntity(e, stack)
           case e: Epic        => mkd.emitEpic(e, stack)
+          case f: Function    => mkd.emitFunction(f, stack)
+          case u: UseCase     => mkd.emitUseCase(u, stack, this)
           case p: Projector   => mkd.emitProjector(p, stack)
           case r: Repository  => mkd.emitRepository(r, stack)
           case s: Saga        => mkd.emitSaga(s, stack)
           case s: Streamlet   => mkd.emitStreamlet(s, stack)
-          case uc: UseCase    => mkd.emitUseCase(uc, stack, this)
 
           // ignore the non-processors
           case _: Function | _: Handler | _: State | _: OnOtherClause | _: OnInitClause | _: OnMessageClause |

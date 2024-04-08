@@ -22,7 +22,7 @@ trait ThemeWriter {
 
   def leafHead(definition: Definition, weight: Int): Unit
 
-  def codeBlock(headline: String, items: Seq[Statement], level: Int = 2): Unit
+  def codeBlock(items: Seq[Statement]): Unit
 
   def notAvailable(thing: String, title: String = "Unavailable"): Unit
 
@@ -32,5 +32,4 @@ trait ThemeWriter {
 
   def makeDocAndParentsLinks(definition: NamedValue): String
 
-  def processorToc(processor: Processor[_, _]): Unit
 }

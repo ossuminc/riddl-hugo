@@ -7,9 +7,8 @@ trait AdaptorWriter { this: MarkdownWriter =>
 
   def emitAdaptor(adaptor: Adaptor, parents: Parents): Unit = {
     containerHead(adaptor, "Adaptor")
-    emitDefDoc(adaptor, parents)
-    p(s"Direction: ${adaptor.direction.format} ${adaptor.context.format}")
+    emitVitalDefinitionDetails(adaptor, parents)
+    h2(s"Direction: ${adaptor.direction.format} ${adaptor.context.format}")
     emitProcessorDetails[AdaptorOption, OccursInAdaptor](adaptor, parents)
-    
   }
 }
