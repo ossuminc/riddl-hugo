@@ -20,11 +20,15 @@ import scala.annotation.unused
 class RunHugoOnExamplesTest
     extends RunCommandOnExamplesTest[HugoCommand.Options, HugoCommand]("hugo") {
 
-  override val outDir: Path = Path.of("riddlc/target/test/hugo-examples")
-
-  override def validateTestName(name: String): Boolean = name == "ReactiveBBQ"
-
-  "Run Hugo On Examples" should { "should work" in { runTests() } }
+  val validTestNames = Seq("ReactiveBBQ", "dokn", "ReactiveSummit")
+  
+  override def validateTestName(name: String): Boolean = validTestNames.exists(name.endsWith)
+  
+  "Run Hugo On Examples" should { 
+    "correctly process ReactiveBBQ" in { 
+      runTest("ReactiveBBQ") 
+    }
+  }
 
   override def onSuccess(@unused commandName: String,
                          @unused caseName: String,
